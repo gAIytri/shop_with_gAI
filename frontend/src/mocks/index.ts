@@ -1,0 +1,6 @@
+export { categories } from './categories'
+export { products } from './products'
+export { mockCartItems } from './cart'
+export { mockOrders } from './orders'
+export { mockUser } from './user'
+export { mockReviews } from './reviews'
