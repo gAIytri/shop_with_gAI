@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 import uuid
 from datetime import datetime
 from decimal import Decimal
+from typing import TYPE_CHECKING
 
 from sqlalchemy import (
-    Boolean,
     CheckConstraint,
     DateTime,
     ForeignKey,
@@ -16,6 +18,9 @@ from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
+
+if TYPE_CHECKING:
+    from app.products.models import Product, ProductVariant
 
 
 class Cart(Base):
@@ -48,7 +53,7 @@ class Cart(Base):
     )
 
     # Relationships
-    items: Mapped[list["CartItem"]] = relationship(
+    items: Mapped[list[CartItem]] = relationship(
         back_populates="cart", cascade="all, delete-orphan"
     )
 
@@ -85,6 +90,6 @@ class CartItem(Base):
     )
 
     # Relationships
-    cart: Mapped["Cart"] = relationship(back_populates="items")
-    product: Mapped["Product"] = relationship("Product")
-    variant: Mapped["ProductVariant | None"] = relationship("ProductVariant")
+    cart: Mapped[Cart] = relationship(back_populates="items")
+    product: Mapped[Product] = relationship("Product")
+    variant: Mapped[ProductVariant | None] = relationship("ProductVariant")

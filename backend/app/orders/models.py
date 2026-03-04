@@ -1,6 +1,10 @@
+from __future__ import annotations
+
+import enum
 import uuid
 from datetime import date, datetime
 from decimal import Decimal
+from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     CheckConstraint,
@@ -18,7 +22,9 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
 
-import enum
+if TYPE_CHECKING:
+    from app.products.models import Product, ProductVariant
+    from app.users.models import User
 
 
 class OrderStatus(str, enum.Enum):
@@ -54,7 +60,9 @@ class PaymentMethod(str, enum.Enum):
 class Order(Base):
     __tablename__ = "orders"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
     order_number: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
     user_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL")
@@ -114,22 +122,24 @@ class Order(Base):
     )
 
     # Relationships
-    items: Mapped[list["OrderItem"]] = relationship(
+    items: Mapped[list[OrderItem]] = relationship(
         back_populates="order", cascade="all, delete-orphan"
     )
-    payments: Mapped[list["Payment"]] = relationship(
+    payments: Mapped[list[Payment]] = relationship(
         back_populates="order", cascade="all, delete-orphan"
     )
-    refunds: Mapped[list["Refund"]] = relationship(
+    refunds: Mapped[list[Refund]] = relationship(
         back_populates="order", cascade="all, delete-orphan"
     )
-    user: Mapped["User | None"] = relationship("User")
+    user: Mapped[User | None] = relationship("User")
 
 
 class OrderItem(Base):
     __tablename__ = "order_items"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
     order_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("orders.id", ondelete="CASCADE"), nullable=False
     )
@@ -159,15 +169,17 @@ class OrderItem(Base):
     )
 
     # Relationships
-    order: Mapped["Order"] = relationship(back_populates="items")
-    product: Mapped["Product | None"] = relationship("Product")
-    variant: Mapped["ProductVariant | None"] = relationship("ProductVariant")
+    order: Mapped[Order] = relationship(back_populates="items")
+    product: Mapped[Product | None] = relationship("Product")
+    variant: Mapped[ProductVariant | None] = relationship("ProductVariant")
 
 
 class Payment(Base):
     __tablename__ = "payments"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
     order_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("orders.id", ondelete="CASCADE"), nullable=False
     )
@@ -205,14 +217,16 @@ class Payment(Base):
     )
 
     # Relationships
-    order: Mapped["Order"] = relationship(back_populates="payments")
-    refunds: Mapped[list["Refund"]] = relationship(back_populates="payment")
+    order: Mapped[Order] = relationship(back_populates="payments")
+    refunds: Mapped[list[Refund]] = relationship(back_populates="payment")
 
 
 class Refund(Base):
     __tablename__ = "refunds"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
     order_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("orders.id", ondelete="CASCADE"), nullable=False
     )
@@ -230,5 +244,5 @@ class Refund(Base):
     )
 
     # Relationships
-    order: Mapped["Order"] = relationship(back_populates="refunds")
-    payment: Mapped["Payment"] = relationship(back_populates="refunds")
+    order: Mapped[Order] = relationship(back_populates="refunds")
+    payment: Mapped[Payment] = relationship(back_populates="refunds")

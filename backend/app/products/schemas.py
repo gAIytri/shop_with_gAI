@@ -1,11 +1,12 @@
+import enum
 from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
-
+from pydantic import BaseModel, ConfigDict
 
 # --- Nested schemas ---
+
 
 class ProductImageOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -61,6 +62,7 @@ class RelatedProductBrief(BaseModel):
 
 # --- Product list item ---
 
+
 class ProductListItem(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -84,6 +86,7 @@ class ProductListItem(BaseModel):
 
 
 # --- Product detail ---
+
 
 class ProductDetail(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -131,6 +134,7 @@ class ProductRelationOut(BaseModel):
 
 # --- Pagination ---
 
+
 class PaginationMeta(BaseModel):
     page: int
     per_page: int
@@ -145,7 +149,8 @@ class PaginatedProducts(BaseModel):
 
 # --- Query params ---
 
-class ProductSortField(str, __import__("enum").Enum):
+
+class ProductSortField(str, enum.Enum):
     price_asc = "price_asc"
     price_desc = "price_desc"
     rating = "rating"

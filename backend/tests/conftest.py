@@ -7,21 +7,19 @@ import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import event
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
+# --- SQLite compatibility for PostgreSQL-specific types ---
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.compiler import compiles
+
+# Import all models
+import app.models  # noqa: F401
 from app.core.database import Base
 from app.core.dependencies import get_db
 from app.core.security import create_access_token
 from app.main import app as fastapi_app
 
-# Import all models
-import app.models  # noqa: F401
-
-# --- SQLite compatibility for PostgreSQL-specific types ---
-from sqlalchemy.dialects.postgresql import JSONB, ARRAY, UUID as PG_UUID
-from sqlalchemy import JSON, String, Text
-from sqlalchemy.ext.compiler import compiles
-from sqlalchemy import Enum as SAEnum
 
 # Make JSONB compile as JSON on SQLite
 @compiles(JSONB, "sqlite")

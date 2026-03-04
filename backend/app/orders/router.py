@@ -3,7 +3,6 @@ from fastapi import APIRouter, Query
 from app.core.dependencies import CurrentUser, DbSession
 from app.orders import service
 from app.orders.schemas import (
-    CancelOrderRequest,
     OrderDetail,
     PaginatedOrders,
     PlaceOrderRequest,

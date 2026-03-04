@@ -1,11 +1,18 @@
+from __future__ import annotations
+
 import uuid
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
+
+if TYPE_CHECKING:
+    from app.products.models import Product
+    from app.users.models import User
 
 
 class Review(Base):
@@ -47,9 +54,9 @@ class Review(Base):
     )
 
     # Relationships
-    product: Mapped["Product"] = relationship("Product", back_populates="reviews")
-    user: Mapped["User | None"] = relationship("User", back_populates="reviews")
-    images: Mapped[list["ReviewImage"]] = relationship(
+    product: Mapped[Product] = relationship("Product", back_populates="reviews")
+    user: Mapped[User | None] = relationship("User", back_populates="reviews")
+    images: Mapped[list[ReviewImage]] = relationship(
         back_populates="review", cascade="all, delete-orphan"
     )
 
@@ -67,4 +74,4 @@ class ReviewImage(Base):
     )
 
     # Relationships
-    review: Mapped["Review"] = relationship(back_populates="images")
+    review: Mapped[Review] = relationship(back_populates="images")

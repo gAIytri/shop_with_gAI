@@ -1,14 +1,15 @@
+from __future__ import annotations
+
+import enum
 import uuid
 from datetime import datetime
 from decimal import Decimal
 
 from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer, Numeric, String, Text
-from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
+from sqlalchemy.dialects.postgresql import ARRAY, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
-
-import enum
 
 
 class DiscountType(str, enum.Enum):
@@ -21,7 +22,9 @@ class DiscountType(str, enum.Enum):
 class Promotion(Base):
     __tablename__ = "promotions"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
 
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text)
@@ -38,8 +41,12 @@ class Promotion(Base):
 
     # Applicability
     applies_to_all: Mapped[bool] = mapped_column(Boolean, default=True)
-    applicable_product_ids: Mapped[list | None] = mapped_column(ARRAY(UUID(as_uuid=True)))
-    applicable_category_ids: Mapped[list | None] = mapped_column(ARRAY(UUID(as_uuid=True)))
+    applicable_product_ids: Mapped[list | None] = mapped_column(
+        ARRAY(UUID(as_uuid=True))
+    )
+    applicable_category_ids: Mapped[list | None] = mapped_column(
+        ARRAY(UUID(as_uuid=True))
+    )
 
     # Usage limits
     max_uses: Mapped[int | None] = mapped_column(Integer)
@@ -47,7 +54,9 @@ class Promotion(Base):
     current_uses: Mapped[int] = mapped_column(Integer, default=0)
 
     # Validity
-    starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    starts_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
     ends_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
@@ -59,7 +68,7 @@ class Promotion(Base):
     )
 
     # Relationships
-    coupons: Mapped[list["Coupon"]] = relationship(
+    coupons: Mapped[list[Coupon]] = relationship(
         back_populates="promotion", cascade="all, delete-orphan"
     )
 
@@ -67,9 +76,12 @@ class Promotion(Base):
 class Coupon(Base):
     __tablename__ = "coupons"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
     promotion_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("promotions.id", ondelete="CASCADE"), nullable=False
+        UUID(as_uuid=True), ForeignKey("promotions.id", ondelete="CASCADE"),
+        nullable=False,
     )
 
     code: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
@@ -84,8 +96,8 @@ class Coupon(Base):
     )
 
     # Relationships
-    promotion: Mapped["Promotion"] = relationship(back_populates="coupons")
-    usages: Mapped[list["CouponUsage"]] = relationship(
+    promotion: Mapped[Promotion] = relationship(back_populates="coupons")
+    usages: Mapped[list[CouponUsage]] = relationship(
         back_populates="coupon", cascade="all, delete-orphan"
     )
 
@@ -93,9 +105,12 @@ class Coupon(Base):
 class CouponUsage(Base):
     __tablename__ = "coupon_usages"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
     coupon_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("coupons.id", ondelete="CASCADE"), nullable=False
+        UUID(as_uuid=True), ForeignKey("coupons.id", ondelete="CASCADE"),
+        nullable=False,
     )
     user_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL")
@@ -111,4 +126,4 @@ class CouponUsage(Base):
     )
 
     # Relationships
-    coupon: Mapped["Coupon"] = relationship(back_populates="usages")
+    coupon: Mapped[Coupon] = relationship(back_populates="usages")

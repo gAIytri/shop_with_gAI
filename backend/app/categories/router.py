@@ -2,9 +2,9 @@ from decimal import Decimal
 
 from fastapi import APIRouter, Query
 
-from app.core.dependencies import DbSession
 from app.categories import service
 from app.categories.schemas import CategoryDetail, CategoryOut
+from app.core.dependencies import DbSession
 from app.products import service as product_service
 from app.products.schemas import PaginatedProducts, ProductSortField
 

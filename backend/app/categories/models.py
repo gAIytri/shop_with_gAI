@@ -1,11 +1,17 @@
+from __future__ import annotations
+
 import uuid
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
+
+if TYPE_CHECKING:
+    from app.products.models import Product
 
 
 class Category(Base):
@@ -31,7 +37,7 @@ class Category(Base):
     meta_description: Mapped[str | None] = mapped_column(String(500))
 
     # Synonyms for search matching
-    synonyms: Mapped[dict | None] = mapped_column(JSONB, default=list)
+    synonyms: Mapped[list | None] = mapped_column(JSONB, default=list)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=datetime.utcnow
@@ -41,16 +47,16 @@ class Category(Base):
     )
 
     # Relationships
-    parent: Mapped["Category | None"] = relationship(
+    parent: Mapped[Category | None] = relationship(
         "Category", remote_side="Category.id", back_populates="children"
     )
-    children: Mapped[list["Category"]] = relationship(
+    children: Mapped[list[Category]] = relationship(
         "Category", back_populates="parent"
     )
-    product_types: Mapped[list["ProductType"]] = relationship(
+    product_types: Mapped[list[ProductType]] = relationship(
         back_populates="category", cascade="all, delete-orphan"
     )
-    products: Mapped[list["Product"]] = relationship("Product", back_populates="category")
+    products: Mapped[list[Product]] = relationship("Product", back_populates="category")
 
 
 class ProductType(Base):
@@ -64,7 +70,7 @@ class ProductType(Base):
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     slug: Mapped[str] = mapped_column(String(100), nullable=False)
     description: Mapped[str | None] = mapped_column(Text)
-    synonyms: Mapped[dict | None] = mapped_column(JSONB, default=list)
+    synonyms: Mapped[list | None] = mapped_column(JSONB, default=list)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=datetime.utcnow
@@ -75,5 +81,5 @@ class ProductType(Base):
     )
 
     # Relationships
-    category: Mapped["Category"] = relationship(back_populates="product_types")
-    products: Mapped[list["Product"]] = relationship("Product", back_populates="product_type")
+    category: Mapped[Category] = relationship(back_populates="product_types")
+    products: Mapped[list[Product]] = relationship("Product", back_populates="product_type")

@@ -9,7 +9,7 @@ from sqlalchemy.orm import selectinload
 from app.cart.models import Cart, CartItem
 from app.cart.schemas import CartOut
 from app.core.exceptions import InsufficientStockError, NotFoundError, ValidationError
-from app.coupons.models import Coupon, Promotion
+from app.coupons.models import Coupon, CouponUsage
 from app.products.models import Product, ProductVariant
 from app.users.models import User
 
@@ -17,11 +17,13 @@ from app.users.models import User
 def _cart_query():
     """Base cart query with eagerly loaded items."""
     return select(Cart).options(
-        selectinload(Cart.items).selectinload(CartItem.product).selectinload(Product.images)
+        selectinload(Cart.items)
+        .selectinload(CartItem.product)
+        .selectinload(Product.images)
     )
 
 
-async def _recalculate_cart(db: AsyncSession, cart: Cart) -> None:
+async def _recalculate_cart(cart: Cart) -> None:
     """Recalculate cart totals from items (mirrors the PostgreSQL trigger)."""
     item_count = 0
     subtotal = Decimal("0")
@@ -30,7 +32,8 @@ async def _recalculate_cart(db: AsyncSession, cart: Cart) -> None:
         subtotal += item.quantity * item.unit_price
     cart.item_count = item_count
     cart.subtotal = subtotal
-    cart.total = subtotal - cart.discount_amount + cart.tax_amount + (cart.shipping_estimate or Decimal("0"))
+    shipping = cart.shipping_estimate or Decimal("0")
+    cart.total = subtotal - cart.discount_amount + cart.tax_amount + shipping
 
 
 async def _find_or_create_cart(
@@ -38,7 +41,7 @@ async def _find_or_create_cart(
     user_id: UUID | None = None,
     session_id: str | None = None,
 ) -> Cart:
-    """Find existing cart or create new one. Uses primitive IDs to avoid lazy-load issues."""
+    """Find existing cart or create new one."""
     query = _cart_query()
 
     if user_id:
@@ -59,7 +62,6 @@ async def _find_or_create_cart(
         db.add(cart)
         await db.flush()
 
-        # Re-fetch with selectinload so items relationship is loaded
         refetch = _cart_query().where(Cart.id == cart.id)
         result = await db.execute(refetch)
         cart = result.scalar_one()
@@ -91,10 +93,12 @@ async def _fresh_cart(
         )
         db.add(cart)
         await db.flush()
-        result = await db.execute(_cart_query().where(Cart.id == cart.id))
+        result = await db.execute(
+            _cart_query().where(Cart.id == cart.id)
+        )
         cart = result.scalar_one()
 
-    await _recalculate_cart(db, cart)
+    await _recalculate_cart(cart)
     return CartOut.model_validate(cart)
 
 
@@ -116,16 +120,13 @@ async def add_item(
     user: User | None = None,
     session_id: str | None = None,
 ) -> CartOut:
-    # Extract user_id upfront before any commit/expire
     user_id = user.id if user else None
     cart = await _find_or_create_cart(db, user_id, session_id)
 
-    # Validate product
     product = await db.get(Product, data_product_id)
     if not product or product.deleted_at or not product.is_active:
         raise NotFoundError("Product", str(data_product_id))
 
-    # Check stock
     available_stock = product.stock_quantity
     unit_price = product.price
 
@@ -137,7 +138,6 @@ async def add_item(
         if variant.price is not None:
             unit_price = variant.price
 
-    # Check if item already in cart
     existing_q = select(CartItem).where(
         CartItem.cart_id == cart.id,
         CartItem.product_id == data_product_id,
@@ -167,7 +167,6 @@ async def add_item(
 
     await db.commit()
     db.expire_all()
-
     return await _fresh_cart(db, user_id, session_id)
 
 
@@ -181,7 +180,9 @@ async def update_item(
     user_id = user.id if user else None
     cart = await _find_or_create_cart(db, user_id, session_id)
 
-    item_q = select(CartItem).where(CartItem.id == item_id, CartItem.cart_id == cart.id)
+    item_q = select(CartItem).where(
+        CartItem.id == item_id, CartItem.cart_id == cart.id
+    )
     item = (await db.execute(item_q)).scalar_one_or_none()
     if not item:
         raise NotFoundError("Cart item", str(item_id))
@@ -189,7 +190,6 @@ async def update_item(
     if quantity == 0:
         await db.delete(item)
     else:
-        # Validate stock
         product = await db.get(Product, item.product_id)
         available = product.stock_quantity if product else 0
         if item.variant_id:
@@ -197,7 +197,9 @@ async def update_item(
             if variant:
                 available = variant.stock_quantity
         if quantity > available:
-            raise InsufficientStockError(product.name if product else "Product")
+            raise InsufficientStockError(
+                product.name if product else "Product"
+            )
         item.quantity = quantity
 
     await db.commit()
@@ -214,7 +216,9 @@ async def remove_item(
     user_id = user.id if user else None
     cart = await _find_or_create_cart(db, user_id, session_id)
 
-    item_q = select(CartItem).where(CartItem.id == item_id, CartItem.cart_id == cart.id)
+    item_q = select(CartItem).where(
+        CartItem.id == item_id, CartItem.cart_id == cart.id
+    )
     item = (await db.execute(item_q)).scalar_one_or_none()
     if not item:
         raise NotFoundError("Cart item", str(item_id))
@@ -232,7 +236,9 @@ async def clear_cart(
 ) -> CartOut:
     user_id = user.id if user else None
     cart = await _find_or_create_cart(db, user_id, session_id)
-    await db.execute(delete(CartItem).where(CartItem.cart_id == cart.id))
+    await db.execute(
+        delete(CartItem).where(CartItem.cart_id == cart.id)
+    )
     cart.coupon_code = None
     cart.discount_amount = Decimal("0")
     await db.commit()
@@ -246,9 +252,8 @@ async def merge_carts(
     anonymous_session_id: str,
 ) -> CartOut:
     """Merge anonymous cart into user cart on login."""
-    user_id = user.id  # Extract before any expire
+    user_id = user.id
 
-    # Get anonymous cart
     anon_q = (
         select(Cart)
         .where(Cart.session_id == anonymous_session_id)
@@ -270,7 +275,9 @@ async def merge_carts(
         existing = (await db.execute(existing_q)).scalar_one_or_none()
 
         if existing:
-            existing.quantity = max(existing.quantity, anon_item.quantity)
+            existing.quantity = max(
+                existing.quantity, anon_item.quantity
+            )
         else:
             new_item = CartItem(
                 cart_id=user_cart.id,
@@ -284,7 +291,6 @@ async def merge_carts(
     await db.delete(anon_cart)
     await db.commit()
     db.expire_all()
-
     return await _fresh_cart(db, user_id=user_id)
 
 
@@ -297,7 +303,6 @@ async def apply_coupon(
     user_id = user.id if user else None
     cart = await _find_or_create_cart(db, user_id, session_id)
 
-    # Validate coupon
     coupon_q = (
         select(Coupon)
         .where(Coupon.code == code, Coupon.is_active.is_(True))
@@ -318,8 +323,13 @@ async def apply_coupon(
     if promo.ends_at and promo.ends_at < now:
         raise ValidationError("This coupon has expired")
     if coupon.max_uses and coupon.current_uses >= coupon.max_uses:
-        raise ValidationError("This coupon has reached its usage limit")
-    if promo.min_purchase_amount and cart.subtotal < promo.min_purchase_amount:
+        raise ValidationError(
+            "This coupon has reached its usage limit"
+        )
+    if (
+        promo.min_purchase_amount
+        and cart.subtotal < promo.min_purchase_amount
+    ):
         raise ValidationError(
             f"Minimum purchase of ${promo.min_purchase_amount} required"
         )
@@ -337,7 +347,17 @@ async def apply_coupon(
 
     cart.coupon_code = code
     cart.discount_amount = discount
-    cart.total = cart.subtotal - discount + cart.tax_amount + (cart.shipping_estimate or Decimal("0"))
+    shipping = cart.shipping_estimate or Decimal("0")
+    cart.total = cart.subtotal - discount + cart.tax_amount + shipping
+
+    # Track coupon usage
+    coupon.current_uses += 1
+    usage = CouponUsage(
+        coupon_id=coupon.id,
+        user_id=user_id,
+        discount_applied=discount,
+    )
+    db.add(usage)
 
     await db.commit()
     db.expire_all()
@@ -353,7 +373,8 @@ async def remove_coupon(
     cart = await _find_or_create_cart(db, user_id, session_id)
     cart.coupon_code = None
     cart.discount_amount = Decimal("0")
-    cart.total = cart.subtotal + cart.tax_amount + (cart.shipping_estimate or Decimal("0"))
+    shipping = cart.shipping_estimate or Decimal("0")
+    cart.total = cart.subtotal + cart.tax_amount + shipping
     await db.commit()
     db.expire_all()
     return await _fresh_cart(db, user_id, session_id)

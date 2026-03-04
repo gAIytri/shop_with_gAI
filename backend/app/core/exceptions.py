@@ -1,8 +1,8 @@
-from fastapi import HTTPException, Request, status
+from fastapi import Request, status
 from fastapi.responses import JSONResponse
 
 
-class AppException(Exception):
+class AppException(Exception):  # noqa: N818
     def __init__(self, status_code: int, detail: str):
         self.status_code = status_code
         self.detail = detail

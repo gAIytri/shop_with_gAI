@@ -1,6 +1,9 @@
+from __future__ import annotations
+
 import uuid
 from datetime import datetime
 from decimal import Decimal
+from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     Boolean,
@@ -17,11 +20,17 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
 
+if TYPE_CHECKING:
+    from app.products.models import Product, ProductVariant
+    from app.users.models import User
+
 
 class Wishlist(Base):
     __tablename__ = "wishlists"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
@@ -38,8 +47,8 @@ class Wishlist(Base):
     )
 
     # Relationships
-    user: Mapped["User"] = relationship("User", back_populates="wishlists")
-    items: Mapped[list["WishlistItem"]] = relationship(
+    user: Mapped[User] = relationship("User", back_populates="wishlists")
+    items: Mapped[list[WishlistItem]] = relationship(
         back_populates="wishlist", cascade="all, delete-orphan"
     )
 
@@ -47,7 +56,9 @@ class Wishlist(Base):
 class WishlistItem(Base):
     __tablename__ = "wishlist_items"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
     wishlist_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("wishlists.id", ondelete="CASCADE"), nullable=False
     )
@@ -71,6 +82,6 @@ class WishlistItem(Base):
     )
 
     # Relationships
-    wishlist: Mapped["Wishlist"] = relationship(back_populates="items")
-    product: Mapped["Product"] = relationship("Product")
-    variant: Mapped["ProductVariant | None"] = relationship("ProductVariant")
+    wishlist: Mapped[Wishlist] = relationship(back_populates="items")
+    product: Mapped[Product] = relationship("Product")
+    variant: Mapped[ProductVariant | None] = relationship("ProductVariant")

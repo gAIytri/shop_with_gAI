@@ -1,14 +1,19 @@
+from __future__ import annotations
+
+import enum
 import uuid
 from datetime import datetime
 from decimal import Decimal
+from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer, Numeric, String, Text
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, Numeric, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
 
-import enum
+if TYPE_CHECKING:
+    from app.categories.models import Category
 
 
 class AttributeType(str, enum.Enum):
@@ -44,7 +49,7 @@ class AttributeTemplate(Base):
     )
 
     # Relationships
-    category: Mapped["Category"] = relationship("Category")
+    category: Mapped[Category] = relationship("Category")
 
 
 class ShippingMethod(Base):
@@ -76,7 +81,7 @@ class NavigationMenu(Base):
     position: Mapped[str] = mapped_column(String(50), default="header")
     display_order: Mapped[int] = mapped_column(Integer, default=0)
 
-    columns: Mapped[dict | None] = mapped_column(JSONB, default=list)
+    columns: Mapped[list | None] = mapped_column(JSONB, default=list)
 
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(

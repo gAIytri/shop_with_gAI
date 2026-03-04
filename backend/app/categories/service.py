@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.admin.models import AttributeTemplate
-from app.categories.models import Category, ProductType
+from app.categories.models import Category
 from app.categories.schemas import CategoryDetail, CategoryOut
 from app.core.exceptions import NotFoundError
 from app.products.models import Product

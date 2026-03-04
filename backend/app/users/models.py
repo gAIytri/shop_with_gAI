@@ -1,16 +1,20 @@
+from __future__ import annotations
+
+import enum
 import uuid
 from datetime import datetime
 from decimal import Decimal
+from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     Boolean,
     DateTime,
     Enum,
+    ForeignKey,
     Integer,
     Numeric,
     String,
     Text,
-    ForeignKey,
     UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -18,8 +22,9 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
 
-# PostgreSQL ENUMs matching schema
-import enum
+if TYPE_CHECKING:
+    from app.reviews.models import Review
+    from app.wishlist.models import Wishlist
 
 
 class UserRole(str, enum.Enum):
@@ -45,7 +50,9 @@ class AddressType(str, enum.Enum):
 class User(Base):
     __tablename__ = "users"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     password_hash: Mapped[str | None] = mapped_column(String(255))
 
@@ -69,9 +76,9 @@ class User(Base):
     phone_verified: Mapped[bool] = mapped_column(Boolean, default=False)
 
     # Preferences (JSONB)
-    preferred_styles: Mapped[dict | None] = mapped_column(JSONB, default=list)
-    preferred_rooms: Mapped[dict | None] = mapped_column(JSONB, default=list)
-    preferred_colors: Mapped[dict | None] = mapped_column(JSONB, default=list)
+    preferred_styles: Mapped[list | None] = mapped_column(JSONB, default=list)
+    preferred_rooms: Mapped[list | None] = mapped_column(JSONB, default=list)
+    preferred_colors: Mapped[list | None] = mapped_column(JSONB, default=list)
     price_range_min: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
     price_range_max: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
 
@@ -95,16 +102,26 @@ class User(Base):
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     # Relationships
-    addresses: Mapped[list["Address"]] = relationship(back_populates="user", cascade="all, delete-orphan")
-    auth_providers: Mapped[list["UserAuthProvider"]] = relationship(back_populates="user", cascade="all, delete-orphan")
-    reviews: Mapped[list["Review"]] = relationship("Review", back_populates="user")
-    wishlists: Mapped[list["Wishlist"]] = relationship("Wishlist", back_populates="user", cascade="all, delete-orphan")
+    addresses: Mapped[list[Address]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
+    auth_providers: Mapped[list[UserAuthProvider]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
+    reviews: Mapped[list[Review]] = relationship(
+        "Review", back_populates="user"
+    )
+    wishlists: Mapped[list[Wishlist]] = relationship(
+        "Wishlist", back_populates="user", cascade="all, delete-orphan"
+    )
 
 
 class UserAuthProvider(Base):
     __tablename__ = "user_auth_providers"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
@@ -122,13 +139,15 @@ class UserAuthProvider(Base):
     )
 
     # Relationships
-    user: Mapped["User"] = relationship(back_populates="auth_providers")
+    user: Mapped[User] = relationship(back_populates="auth_providers")
 
 
 class Address(Base):
     __tablename__ = "addresses"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
@@ -159,4 +178,4 @@ class Address(Base):
     )
 
     # Relationships
-    user: Mapped["User"] = relationship(back_populates="addresses")
+    user: Mapped[User] = relationship(back_populates="addresses")

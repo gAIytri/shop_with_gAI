@@ -1,4 +1,3 @@
-import math
 from datetime import datetime, timezone
 from decimal import Decimal
 from uuid import UUID
@@ -8,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.admin.models import ShippingMethod
-from app.cart.models import Cart, CartItem
+from app.cart.models import Cart
 from app.core.exceptions import NotFoundError, ValidationError
 from app.orders.models import Order, OrderItem, OrderStatus, Payment, PaymentMethod, PaymentStatus
 from app.orders.schemas import OrderDetail, OrderOut, PaginatedOrders
@@ -78,7 +77,7 @@ async def place_order(
     for ci in cart.items:
         product = await db.get(Product, ci.product_id)
         if not product or product.deleted_at:
-            raise ValidationError(f"Product no longer available")
+            raise ValidationError("Product no longer available")
 
         available = product.stock_quantity
         variant = None

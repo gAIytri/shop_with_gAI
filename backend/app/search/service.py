@@ -4,7 +4,6 @@ from sqlalchemy import func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.categories.models import Category
 from app.products.models import Product
 from app.products.schemas import PaginationMeta, ProductListItem
 from app.search.schemas import SearchResult, SearchSuggestion

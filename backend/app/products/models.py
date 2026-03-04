@@ -1,6 +1,10 @@
+from __future__ import annotations
+
+import enum
 import uuid
 from datetime import datetime
 from decimal import Decimal
+from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     Boolean,
@@ -18,7 +22,9 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
 
-import enum
+if TYPE_CHECKING:
+    from app.categories.models import Category, ProductType
+    from app.reviews.models import Review
 
 
 class StockStatus(str, enum.Enum):
@@ -65,7 +71,7 @@ class Product(Base):
     attributes: Mapped[dict | None] = mapped_column(JSONB, default=dict)
     visual_attributes: Mapped[dict | None] = mapped_column(JSONB, default=dict)
     enriched_description: Mapped[dict | None] = mapped_column(JSONB, default=dict)
-    tags: Mapped[dict | None] = mapped_column(JSONB, default=list)
+    tags: Mapped[list | None] = mapped_column(JSONB, default=list)
     seo: Mapped[dict | None] = mapped_column(JSONB, default=dict)
 
     # Metadata flags
@@ -75,8 +81,8 @@ class Product(Base):
     is_new: Mapped[bool] = mapped_column(Boolean, default=False)
 
     # Denormalized review stats
-    avg_rating: Mapped[Decimal] = mapped_column(Numeric(2, 1), default=0)
-    review_count: Mapped[int] = mapped_column(Integer, default=0)
+    avg_rating: Mapped[Decimal | None] = mapped_column(Numeric(2, 1), default=0)
+    review_count: Mapped[int | None] = mapped_column(Integer, default=0)
 
     # Timestamps
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
@@ -90,9 +96,13 @@ class Product(Base):
 
     # Relationships
     category: Mapped["Category"] = relationship("Category", back_populates="products")
-    product_type: Mapped["ProductType | None"] = relationship("ProductType", back_populates="products")
-    images: Mapped[list["ProductImage"]] = relationship(
-        back_populates="product", cascade="all, delete-orphan", order_by="ProductImage.display_order"
+    product_type: Mapped["ProductType | None"] = relationship(
+        "ProductType", back_populates="products"
+    )
+    images: Mapped[list[ProductImage]] = relationship(
+        back_populates="product",
+        cascade="all, delete-orphan",
+        order_by="ProductImage.display_order",
     )
     variants: Mapped[list["ProductVariant"]] = relationship(
         back_populates="product", cascade="all, delete-orphan"

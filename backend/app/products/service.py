@@ -8,7 +8,7 @@ from sqlalchemy.orm import selectinload
 
 from app.categories.models import Category
 from app.core.exceptions import NotFoundError
-from app.products.models import Product, ProductImage, ProductRelation
+from app.products.models import Product, ProductRelation
 from app.products.schemas import (
     PaginatedProducts,
     PaginationMeta,
