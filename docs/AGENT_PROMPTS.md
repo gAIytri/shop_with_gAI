@@ -21,7 +21,7 @@ Copy-paste these into any Claude Code console. Each prompt is a self-contained t
 | 3 | Frontend: Pages (Checkout, Account, Auth, etc.) | DONE | `feature/frontend-upgrade` |
 | 4 | Frontend: Mobile Responsiveness & UX | DONE | `feature/frontend-upgrade` |
 | 5 | Frontend: Routing & Integration | DONE | `feature/frontend-upgrade` |
-| 6 | Frontend: API Service Layer | IN PROGRESS | `feature/frontend-upgrade` |
+| 6 | Frontend: API Service Layer | DONE | `feature/frontend-upgrade` |
 | 7 | Auth Integration (Azure AD B2C) | NOT STARTED | `feature/auth-integration` |
 | 8 | Stripe Payments | NOT STARTED | `feature/payments-stripe` |
 | 9 | Voice Pipeline | NOT STARTED | `feature/voice-pipeline` |
@@ -208,7 +208,7 @@ RULES:
 
 ---
 
-## Task 6: Frontend — API Service Layer (CURRENT)
+## Task 6: Frontend — API Service Layer (DONE)
 
 ```
 You are working on the Shop with gAI project — building the API service layer.
@@ -289,29 +289,71 @@ RULES:
 ## Task 7: Auth Integration (NOT STARTED)
 
 **Prerequisite:** Task 6 (API Service Layer) must be done first.
-**Branch:** `feature/auth-integration` (create from `develop`)
+**Branch:** `feature/auth-integration` (create from `feature/frontend-upgrade`)
+**Can run in parallel with:** Task 9 (Voice Pipeline)
 
 ```
 You are working on the Shop with gAI project — adding Azure AD B2C authentication.
 
 Your role: Auth Integration Developer
-Your branch: feature/auth-integration
+Branch: feature/auth-integration (create from feature/frontend-upgrade)
+Working directory: /Users/sidharthraj/Gaiytri projects/shopwithgAI/
+
+CURRENT STATE: Tasks 1-6 are complete. Build passes cleanly.
 
 Read these files first:
 1. docs/ARCHITECTURE.md (Section 8 — Authentication)
 2. docs/WORKSTREAMS.md (WS-5 tasks)
+3. gai-ecom/src/store/useAuthStore.ts (existing auth state — has token, refreshToken, sessionId)
+4. gai-ecom/src/services/api/client.ts (Axios client with JWT interceptor already wired)
+5. gai-ecom/src/pages/Login.tsx and Register.tsx (existing UI — needs MSAL wiring)
+6. gai-ecom/src/pages/Checkout.tsx (guest checkout flow to preserve)
+7. backend/app/auth/ (existing backend auth module)
 
-You need to:
-1. Set up Azure AD B2C configuration (user flows, app registration)
-2. Backend: JWT validation middleware for Azure AD B2C tokens
-3. Frontend: MSAL.js integration for login/logout/token refresh
-4. Protected routes (customer + admin)
-5. Cart merge on login
-6. Guest checkout support
+YOUR TASKS:
+7.1 Azure AD B2C configuration:
+    - Create src/config/authConfig.ts with MSAL configuration
+    - Environment variables: VITE_AZURE_AD_B2C_TENANT, VITE_AZURE_AD_B2C_CLIENT_ID, etc.
+    - User flows: sign-up-sign-in, password-reset, profile-edit
 
-Work on the feature/auth-integration branch from develop.
-NEVER mention Claude or AI in commits or comments.
-Ask before pushing to remote.
+7.2 Backend JWT validation middleware:
+    - backend/app/auth/middleware.py — validate Azure AD B2C tokens
+    - JWKS endpoint integration for token signature verification
+    - Role extraction from token claims (customer, admin)
+
+7.3 Frontend MSAL.js integration:
+    - Install @azure/msal-browser, @azure/msal-react
+    - Create MsalProvider wrapper in App.tsx
+    - Wire Login.tsx and Register.tsx to MSAL flows
+    - Token refresh handling in useAuthStore
+
+7.4 Protected routes:
+    - Create ProtectedRoute component (redirects to /login if unauthenticated)
+    - Protect: /account/*, /checkout (payment step only)
+    - Admin routes: /admin/* (check role claim)
+
+7.5 Cart merge on login:
+    - On login: merge anonymous cart (by sessionId) with user cart
+    - Use existing cartApi.ts merge endpoint
+
+7.6 Guest checkout support:
+    - Allow checkout without login up to payment step
+    - Prompt login/register at payment with "Continue as Guest" option
+    - Guest orders linked by email, convertible to account later
+
+FOLLOW-UP QUESTIONS — Ask the user before starting if any of these are unclear:
+- "Do you have Azure AD B2C tenant credentials ready, or should I create mock/placeholder configs?"
+- "Should login redirect back to the previous page, or always go to /account?"
+- "For admin routes, is there an admin panel built yet, or should I just create the route guard?"
+
+RULES:
+- Work in: gai-ecom/src/ (frontend) and backend/app/auth/ (backend)
+- Update gai-ecom/.env.example with new Azure variables
+- Do NOT break existing mock-data flow — auth should be optional
+- Run `npm run build` before committing to verify zero errors
+- Commit when done
+- NEVER mention Claude or AI in commits or comments
+- Ask before pushing to remote
 ```
 
 ---
@@ -319,29 +361,72 @@ Ask before pushing to remote.
 ## Task 8: Stripe Payments (NOT STARTED)
 
 **Prerequisite:** Task 7 (Auth Integration) should be done first.
-**Branch:** `feature/payments-stripe` (create from `develop`)
+**Branch:** `feature/payments-stripe` (create from `feature/auth-integration`)
+**Must wait for:** Task 7 (needs auth for saved payment methods)
 
 ```
 You are working on the Shop with gAI project — adding Stripe payment processing.
 
 Your role: Payments Developer
-Your branch: feature/payments-stripe
+Branch: feature/payments-stripe (create from feature/auth-integration)
+Working directory: /Users/sidharthraj/Gaiytri projects/shopwithgAI/
+
+CURRENT STATE: Tasks 1-7 are complete.
 
 Read these files first:
 1. docs/ARCHITECTURE.md (Section 5 — Checkout API)
 2. docs/WORKSTREAMS.md (WS-6 tasks)
+3. gai-ecom/src/pages/Checkout.tsx (existing 3-step checkout flow)
+4. gai-ecom/src/store/useCheckoutStore.ts (checkout state)
+5. gai-ecom/src/services/api/checkoutApi.ts (API service — has create-payment-intent stub)
+6. backend/app/orders/router.py (order creation endpoints)
+7. gai-ecom/src/store/useAuthStore.ts (auth state for saved methods)
 
-You need to:
-1. Backend: Stripe PaymentIntent creation, webhook handling
-2. Frontend: Stripe Elements integration in checkout
-3. Complete checkout flow: Address → Shipping → Payment → Confirmation
-4. Saved payment methods
-5. Apple Pay / Google Pay
-6. Admin refund functionality
+YOUR TASKS:
+8.1 Backend Stripe integration:
+    - Install stripe Python SDK
+    - backend/app/payments/router.py — POST /payments/create-intent, POST /payments/confirm
+    - backend/app/payments/webhook.py — Stripe webhook handler (payment_intent.succeeded, refund, etc.)
+    - Stripe secret key from env: STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET
 
-Work on the feature/payments-stripe branch from develop.
-NEVER mention Claude or AI in commits or comments.
-Ask before pushing to remote.
+8.2 Frontend Stripe Elements:
+    - Install @stripe/stripe-js, @stripe/react-stripe-js
+    - Create PaymentForm component with CardElement
+    - Wire into Checkout.tsx step 3 (Payment)
+    - Handle payment confirmation and error states
+
+8.3 Complete checkout flow:
+    - Step 1 (Shipping): Address form → validate → save
+    - Step 2 (Shipping Method): Select method → calculate tax
+    - Step 3 (Payment): Stripe Elements → PaymentIntent → confirm
+    - Step 4 (Confirmation): OrderConfirmation page with order number
+
+8.4 Saved payment methods (requires auth):
+    - List saved cards for authenticated users
+    - Add/remove payment methods
+    - Default payment method selection
+
+8.5 Apple Pay / Google Pay:
+    - Stripe Payment Request Button integration
+    - Feature detection for supported wallets
+
+8.6 Admin refund:
+    - backend/app/payments/router.py — POST /payments/refund
+    - Admin UI button on order detail (if admin panel exists)
+
+FOLLOW-UP QUESTIONS — Ask the user before starting if any of these are unclear:
+- "Do you have a Stripe test account set up? I'll need STRIPE_PUBLISHABLE_KEY and STRIPE_SECRET_KEY."
+- "Should I implement real Stripe Elements or create a mock payment form for now?"
+- "For Apple Pay/Google Pay — should I prioritize this or defer to a later polish phase?"
+
+RULES:
+- Work in: gai-ecom/src/ (frontend) and backend/app/payments/ (backend)
+- Update gai-ecom/.env.example and backend/.env.example with Stripe variables
+- Use Stripe test mode keys only
+- Run `npm run build` before committing
+- Commit when done
+- NEVER mention Claude or AI in commits or comments
+- Ask before pushing to remote
 ```
 
 ---
@@ -349,35 +434,99 @@ Ask before pushing to remote.
 ## Task 9: Voice Pipeline (NOT STARTED)
 
 **Prerequisite:** Task 6 (API Service Layer) must be done first.
-**Branch:** `feature/voice-pipeline` (create from `develop`)
+**Branch:** `feature/voice-pipeline` (create from `feature/frontend-upgrade`)
+**Can run in parallel with:** Task 7 (Auth Integration)
 
 ```
 You are working on the Shop with gAI project — building the voice interaction pipeline.
 
 Your role: Voice Pipeline Developer
-Your branch: feature/voice-pipeline
+Branch: feature/voice-pipeline (create from feature/frontend-upgrade)
+Working directory: /Users/sidharthraj/Gaiytri projects/shopwithgAI/
+
+CURRENT STATE: Tasks 1-6 are complete. Build passes cleanly.
 
 Read these files first:
 1. docs/ARCHITECTURE.md (Section 7 — Action Dispatcher & Voice Pipeline)
 2. docs/WORKSTREAMS.md (WS-7 tasks)
+3. gai-ecom/src/store/useCartStore.ts (cart mutations the dispatcher will call)
+4. gai-ecom/src/store/useFilterStore.ts (filter mutations for "show me blue sofas")
+5. gai-ecom/src/store/useWishlistStore.ts (wishlist mutations)
+6. gai-ecom/src/services/productService.ts (product search/filter functions)
+7. gai-ecom/src/data/navigationData.json (category structure for navigation intents)
+8. Data/archive/nlu/ (archived NLU schema — 15 intents, 8 entities, reference only)
 
-You need to:
-1. Voice widget component (floating mic button, transcript overlay)
-2. STT engine: Web Speech API wrapper
-3. TTS engine: Web Speech Synthesis wrapper
-4. Mock NLU: Pattern-matching intent extractor (16 intents)
-5. Action Dispatcher: Intent+slots → Zustand store mutations + navigation
-6. Dialogue context manager
-7. Confirmation flow for irreversible actions
-8. Text chat fallback
-9. Azure OpenAI integration stub (for teammate's chatbot)
+YOUR TASKS:
+9.1 Voice widget component:
+    - Create src/components/voice/VoiceWidget.tsx — floating mic button (bottom-right)
+    - Transcript overlay showing real-time speech-to-text
+    - Visual states: idle, listening, processing, speaking
+    - Expand/collapse into chat panel
 
-The voice pipeline does NOT use Playwright or browser automation.
-It works by directly manipulating React state (Zustand) and React Router.
+9.2 STT engine (src/services/voice/stt.ts):
+    - Web Speech API (SpeechRecognition) wrapper
+    - Continuous vs single-shot modes
+    - Language: en-US
+    - Interim results for live transcript
 
-Work on the feature/voice-pipeline branch from develop.
-NEVER mention Claude or AI in commits or comments.
-Ask before pushing to remote.
+9.3 TTS engine (src/services/voice/tts.ts):
+    - Web Speech Synthesis wrapper
+    - Queue management for multiple utterances
+    - Cancel on new user input
+
+9.4 Mock NLU (src/services/voice/nlu.ts):
+    - Pattern-matching intent extractor
+    - Intents: search_product, filter_by_color, filter_by_style, filter_by_room,
+      filter_by_price, add_to_cart, remove_from_cart, view_cart, checkout,
+      navigate_category, navigate_home, product_details, compare_products,
+      add_to_wishlist, get_recommendations, help
+    - Slot extraction: product_name, color, style, room, price_min, price_max, quantity, category
+
+9.5 Action Dispatcher (src/services/voice/dispatcher.ts):
+    - Maps intent+slots → Zustand store mutations + React Router navigation
+    - search_product → navigate to /search?q=...
+    - filter_by_color → useFilterStore.toggleColor(slot.color)
+    - add_to_cart → useCartStore.addItem(product, quantity)
+    - navigate_category → router.push(`/category/${slot.category}`)
+    - Generates spoken response text for TTS
+
+9.6 Dialogue context manager (src/services/voice/context.ts):
+    - Track conversation history (last 5 turns)
+    - Resolve pronouns: "add it to cart" → uses last viewed product
+    - Multi-turn: "show me sofas" → "now in blue" → adds color filter
+
+9.7 Confirmation flow:
+    - Confirm before: checkout, remove from cart, clear cart
+    - "Did you mean...?" for ambiguous queries
+
+9.8 Text chat fallback:
+    - Text input in the voice widget panel
+    - Same NLU pipeline, just no STT/TTS
+
+9.9 Azure OpenAI integration stub:
+    - src/services/voice/aiChat.ts
+    - POST /api/v1/chat/message interface stub
+    - Request: { message, context: { cart, filters, currentPage } }
+    - Response: { intent, slots, response_text, confidence }
+    - Falls back to mock NLU when AI service is unavailable
+
+FOLLOW-UP QUESTIONS — Ask the user before starting if any of these are unclear:
+- "Should the voice widget appear on all pages, or only specific ones (home, category, product)?"
+- "For the mock NLU, should I support multiple languages or English only for MVP?"
+- "Your teammate is building the Azure OpenAI chatbot — do you have the API contract finalized, or should I use the stub from ARCHITECTURE.md?"
+
+IMPORTANT: The voice pipeline does NOT use Playwright or browser automation.
+It works by directly manipulating React state (Zustand stores) and React Router navigation.
+
+RULES:
+- Work in: gai-ecom/src/components/voice/, gai-ecom/src/services/voice/
+- Also modify: gai-ecom/src/components/layout/Layout.tsx (add VoiceWidget)
+- Do NOT modify existing stores — use their public APIs
+- Do NOT modify existing pages — only add the voice widget overlay
+- Run `npm run build` before committing
+- Commit when done
+- NEVER mention Claude or AI in commits or comments
+- Ask before pushing to remote
 ```
 
 ---
