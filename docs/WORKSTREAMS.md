@@ -4,41 +4,75 @@
 
 This file is the **single source of truth** for all implementation tasks. Each workstream is self-contained with enough detail for any developer or agent to pick it up independently.
 
-### Console Strategy
+### Console Strategy (Updated — Frontend Upgrade Phase)
 
-| Console | Role | Branch | What It Does |
-|---------|------|--------|-------------|
-| Console 1 | Backend Developer | `feature/backend-api` | WS-1: All backend API work |
-| Console 2 | Frontend Developer | `feature/frontend-core` | WS-2: All frontend UI work |
-| Console 3 | Verifier/QA | Reads all branches | Continuously checks code quality, tests, type errors |
+**Branch**: `feature/frontend-upgrade` (single branch for all frontend consoles)
+**No worktrees needed** — all consoles work in the same directory (`gai-ecom/`), each owns different files.
+
+| Console | Role | Files Owned | Step |
+|---------|------|-------------|------|
+| Coordinator (this console) | Setup, routing, integration | `App.tsx`, git ops, docs | 0, 4, 6 |
+| Console A | Types, Stores, Components, API | `src/types/`, `src/store/`, `src/services/`, `src/components/ui/`, `src/components/common/` | 1, then 5 |
+| Console B | New Pages | `src/pages/` (new files only) | 2 |
+| Console C | Mobile + UX Polish | `src/components/layout/`, `src/components/product/`, existing page responsive fixes | 3 |
+| QA Console | Verification | Reads all, writes nothing | After each step |
+
+### Execution Order
+```
+Step 0: Coordinator → setup branch, baseline commit
+Step 1: Console A → types, stores, UI components (BLOCKING — others wait)
+Step 2+3: Console B + Console C → pages + mobile (PARALLEL)
+Step 4: Coordinator → wire routing, verify
+Step 5: Console A → API service layer
+Step 6: Coordinator → swap old frontend, cleanup, merge
+```
 
 ### Rules for All Consoles
 1. Always read this file + `docs/ARCHITECTURE.md` before starting work
-2. Work ONLY on your assigned branch
+2. Work ONLY on your assigned files/directories
 3. Never push directly to `main` — all work goes through PRs
-4. After completing a task, update the checkbox in this file: `[ ]` → `[x]`
-5. Commit frequently with descriptive messages
-6. If blocked, document the blocker in a comment and move to the next task
+4. Commit frequently with descriptive messages
+5. If blocked, document the blocker and move to the next task
+6. NEVER mention Claude or AI in commits or comments
 
 ---
 
 ## Dependency Graph
 
 ```
-WS-0 (Setup) ──────────────────────────────── MUST BE FIRST
+WS-0 (Setup) ─────────────────────────────────── DONE
     │
-    ├──→ WS-1 (Backend API) ──────┐
-    │                              ├──→ WS-4 (Integration) ──┬──→ WS-5 (Auth)
-    └──→ WS-2 (Frontend UI) ─────┘                          ├──→ WS-6 (Payments)
-              │                                               ├──→ WS-7 (Voice)
-              └──→ WS-3 (Admin Panel) ─────────────────────→│
-                                                              └──→ WS-8 (Polish)
+    ├──→ WS-1 (Backend API) ──────────────────── DONE (merged to develop)
+    │                              ┌─────────────────────────────────────┐
+    └──→ WS-2R (Frontend Upgrade)─┤ Step 0: Setup (Coordinator)        │
+         (replaces old WS-2)      │ Step 1: Types+Stores (Console A)   │
+                                  │ Step 2: Pages (Console B)     ──┐  │
+                                  │ Step 3: Mobile+UX (Console C) ──┤  │ PARALLEL
+                                  │ Step 4: Routing (Coordinator)   │  │
+                                  │ Step 5: API Layer (Console A)   │  │
+                                  │ Step 6: Swap+Cleanup (Coord.)   │  │
+                                  └──────────────┬──────────────────┘  │
+                                                 │                     │
+    WS-1 (Backend) ──────────────────────────────┤                     │
+                                                 ├──→ WS-4 (Integration)
+                                                 │         │
+                                                 │         ├──→ WS-5 (Auth)
+                                                 │         ├──→ WS-6 (Payments)
+         WS-3 (Admin Panel) ────────────────────→│         ├──→ WS-7 (Voice)
+                                                           └──→ WS-8 (Polish)
 ```
 
-**Parallel Groups:**
-- Group A (after WS-0): WS-1 + WS-2 run in parallel
-- Group B (after WS-4): WS-5 + WS-6 + WS-7 run in parallel
-- Sequential: WS-0 → Group A → WS-3 + WS-4 → Group B → WS-8
+**Current Status:**
+- WS-0: DONE
+- WS-1: DONE (42 endpoints, 28 tests, merged to `develop`)
+- WS-2: REPLACED by WS-2R (frontend upgrade using gai-ecom)
+- WS-2R: IN PROGRESS (Steps 0-6, see below)
+
+**Execution Order:**
+- WS-2R Steps 0-6 complete the frontend upgrade
+- WS-4 depends on WS-1 (done) + WS-2R Step 5 (API service layer)
+- Group B (WS-5 + WS-6 + WS-7): After WS-4
+- WS-8: After all others
 
 ---
 
@@ -379,200 +413,144 @@ WS-0 (Setup) ──────────────────────�
 
 ---
 
-## WS-2: Frontend - UI Shell & Components
+## WS-2R: Frontend Upgrade (Replaces WS-2)
 
-**Branch:** `feature/frontend-core` (from `develop`)
-**Estimated:** 5-7 days
-**Dependencies:** WS-0 complete
-**Console:** Console 2 (Frontend Developer)
+**Branch:** `feature/frontend-upgrade` (from `develop`)
+**Dependencies:** WS-0 + WS-1 complete
+**Strategy:** Upgrade existing `gai-ecom/` site (React 19, 158 products, 181 images, custom SX design system) into the production frontend. Port missing features from old `frontend/` (WS-2).
+**Brand:** gAI DECOR | **Colors:** Emerald #29B770, Dark Green #072D1F
 
-### Reference Files
-- `docs/ARCHITECTURE.md` Section 6 (Frontend Architecture), Section 14 (Design System)
-- Screenshots in project root (Jonathan Y reference design)
+### What gai-ecom Already Has (DONE)
+- Landing page with HeroCarousel, VideoHero, FlashSale, TrendingSection, InteriorStyles
+- 6 category Hub pages (Furniture, Rugs, Lighting, Decor, Art, Bedding) with scroll animations
+- ProductDetail with split-view gallery, color swatches, accordions, similar products
+- Cart page + CartDrawer (framer-motion slide-in)
+- 5 Zustand stores: cart, cartDrawer, filter, recentlyViewed, toast
+- productService.ts with filtering, search, similar products (341 lines)
+- SX Design System (object-to-Tailwind compiler): Box, Flex, Text, Grid, Stack
+- 158 real products across 6 categories with 181 images
 
-### Important Note
-Use **mock data** for all pages. Do NOT connect to the real API yet (that's WS-4). Create mock data files that match the API response schemas from ARCHITECTURE.md Section 5.
+### What's Missing (TODO — Steps 1-6 below)
+- Checkout flow, Wishlist, Account pages, Auth pages, Search results
+- Mobile responsiveness (hardcoded `w-1/2`, no hamburger menu)
+- Auth store, Wishlist store, Checkout store, Order store, UI store
+- Unified Product types (two mismatched Product types exist)
+- API service layer for backend integration
+- Several shadcn UI components (Sheet, Tabs, Skeleton, etc.)
 
 ### Tasks
 
-#### Design System Setup
-- [ ] **2.1** Tailwind config with design tokens
+#### Step 0: Setup (Coordinator)
+
+- [ ] **0.1** Remove old git worktrees
+  ```bash
+  git worktree remove ../shopwithgAI-backend
+  git worktree remove ../shopwithgAI-frontend
+  git branch -d feature/backend-api feature/frontend-core
   ```
-  Colors: primary #1B1B3A, background #FFFFFF, surface #F9F9F9, etc.
-  Fonts: Playfair Display (display), Inter (body)
-  Spacing, shadows, breakpoints per ARCHITECTURE.md Section 14
+
+- [ ] **0.2** Create feature branch
+  ```bash
+  git checkout develop
+  git checkout -b feature/frontend-upgrade
   ```
-  - Import Google Fonts
-  - Configure shadcn/ui theme to match
 
-- [ ] **2.2** Base UI primitives (via shadcn/ui + custom)
-  - Install shadcn components: Button, Input, Select, Dialog, Sheet, Accordion, Tabs, Badge, Separator, Skeleton, Toast, Dropdown Menu, Checkbox, Slider, Label, Card
-  - Custom components:
-    - `Rating` — Star rating display (filled/empty, 1-5, shows count)
-    - `PriceDisplay` — Formats price with currency, sale price strikethrough
-    - `QuantityStepper` — [-] count [+] control
-    - `Breadcrumbs` — From route path
-    - `PromoBar` — Top banner ("FREE SHIPPING ON ALL ORDERS")
+- [ ] **0.3** Add gai-ecom to git tracking, commit baseline
 
-#### Layout Components
-- [ ] **2.3** Layout shell
-  - `Header` — Sticky, full-width
-    - Logo (left): Serif font "SHOP WITH gAI"
-    - Navigation (center): Dynamic category links (hardcoded from mock data for now)
-    - Icons (right): Search, Account, Cart (with badge count)
-    - Mobile: Hamburger menu → slide-out sheet
-  - `Footer`
-    - Newsletter signup bar (email input + SUBSCRIBE button)
-    - Link columns: Shop, About, Help, Legal
-    - Social icons
-    - Copyright
-  - `PageLayout` — Wraps Header + content + Footer
-  - `Container` — Max-width 1440px centered wrapper
+#### Step 1: Console A — Types, Stores & Components Foundation
 
-#### Pages
-- [ ] **2.4** HomePage
-  - Hero carousel (full-width, 3-4 slides, auto-rotate, pause on hover)
-    - Each slide: lifestyle image + overlay text + CTA button
-  - Category grid (3-column on desktop, 2 on tablet, 1 on mobile)
-    - Each card: lifestyle image + category name overlay/below
-    - Links to `/category/{slug}`
-  - "TRENDING" section
-    - Horizontal scroll on mobile, 5-col grid on desktop
-    - Product cards (image, name, price, rating)
-  - Featured collection banner (full-width lifestyle image)
-  - "NEW ARRIVALS" section (4-col product grid)
-  - Use mock data for all products
+**BLOCKING: Steps 2 and 3 depend on this completing first.**
+**Files owned:** `src/types/`, `src/store/`, `src/components/ui/`, `src/components/common/`, Navbar.tsx + Footer.tsx (rebrand only)
 
-- [ ] **2.5** CollectionPage (`/category/:slug`)
-  - Breadcrumbs: Home > {Category Name}
-  - Category title + product count
-  - **Filter sidebar** (left, 240px width on desktop, slide-out on mobile)
-    - Collapsible accordion sections
-    - For MVP, hardcode filter sections matching seed data:
-      - Color (checkbox list with color swatches)
-      - Material (checkbox list)
-      - Style (checkbox list)
-      - Price Range (range slider or min/max inputs)
-      - Room (checkbox list)
-    - "Clear All Filters" button
-    - NOTE: In future (WS-4), filters auto-generate from attribute_templates API
-  - **Product grid** (right)
-    - Sort dropdown: "Best Selling", "Price: Low to High", "Price: High to Low", "Newest", "Top Rated"
-    - 4-col grid (desktop), 3-col (tablet), 2-col (mobile)
-    - Product cards matching Jonathan Y style:
-      - Product image (hover: show second image if available)
-      - Product name (truncated to 2 lines)
-      - Price (sale price + original price strikethrough)
-      - Star rating + review count
-    - Pagination or "Load More" button
-  - Filter state stored in Zustand `filterStore`
-  - URL query params sync with filter state
+- [ ] **1.1** Unify Product types
+  - Modify `src/types/product.ts`: Add `slug?`, `stockStatus?`, typed `enrichedDescription`
+  - Rewrite `src/types/index.ts`: Export Product from `./product`, add User, Address, Order, OrderItem, CartItem (with `id`), Review, WishlistItem, SortOption, ShippingMethod
+  - Create `src/types/api.ts`: Backend wire-format types (snake_case)
 
-- [ ] **2.6** ProductDetailPage (`/product/:slug`)
-  - Breadcrumbs: Home > {Category} > {Product Name}
-  - **Left column (60%)**:
-    - Large main image (zoomable on hover or click)
-    - Thumbnail strip below (5-6 images, click to swap main)
-  - **Right column (40%)**:
-    - Product name (H1)
-    - Price: `$43.99` (sale shows original strikethrough)
-    - Rating: ★★★★★ 4.6 (63 reviews) — clickable to scroll to reviews
-    - Color selector: swatch buttons with active state
-    - Size/variant selector: button grid (like Jonathan Y: tab groups for shape, then size buttons)
-    - "YOU MAY ALSO NEED" cross-sell section (checkbox + price + details link)
-    - Installment payment info text
-    - Quantity stepper + "ADD TO BAG" button (navy, full-width)
-  - **Below** (full-width):
-    - Collapsible accordion sections:
-      - DESCRIPTION (product long description)
-      - SHIPPING & RETURNS (static text)
-      - DETAILS & DIMENSIONS (from attributes)
-    - Customer reviews section:
-      - Average rating summary
-      - "Write a Review" button
-      - Review list (paginated)
-  - **"YOU MAY ALSO LIKE"** section (4-col product grid)
-  - Mobile: Single column, image gallery becomes horizontal swipe
+- [ ] **1.2** Fix CartStore
+  - Use canonical Product type from `types/product.ts`
+  - Add `id` (uuid) to each CartItem for variant handling
+  - Add `couponCode`, `discount` state
+  - Add `subtotal()`, `shipping()`, `tax()`, `total()` computed methods
+  - Port coupon logic from old `frontend/src/stores/cartStore.ts`
 
-- [ ] **2.7** CartPage (`/cart`)
-  - **Left column (65%)**:
-    - "CART ({count})" heading
-    - Cart item list:
-      - Product image (small)
-      - Product name
-      - Options: Color, Size, Shape
-      - Price
-      - Quantity stepper [-] count [+]
-      - "Remove" link
-    - "YOU MAY ALSO NEED" cross-sell section below
-  - **Right column (35%)**:
-    - "ORDER SUMMARY" card
-      - Subtotal
-      - Shipping: "Free" or calculated
-      - Tax: "calculated at checkout"
-      - Discount code: input + "APPLY" button
-      - Total (bold, large)
-      - "CHECKOUT" button (navy, full-width)
-      - Payment icons row: Apple Pay, PayPal, Google Pay
-  - Empty cart state: Illustration + "Your cart is empty" + "Continue Shopping" button
-  - Cart state from Zustand `cartStore`
+- [ ] **1.3** Create new Zustand stores
+  - `useAuthStore.ts` — user, token, sessionId, login/logout/updateUser. Persist token+sessionId
+  - `useWishlistStore.ts` — items, addItem/removeItem/isInWishlist. Persist
+  - `useUIStore.ts` — isMobileMenuOpen, isSearchOpen
+  - `useCheckoutStore.ts` — step (0-2), shippingAddress, shippingMethod, reset
+  - `useOrderStore.ts` — orders, currentOrder
 
-- [ ] **2.8** CheckoutPage (`/checkout`)
-  - Multi-step form:
-    - Step 1: Shipping Address (form fields OR select saved address)
-    - Step 2: Shipping Method (radio buttons: Standard/Express/Free)
-    - Step 3: Payment (Stripe Elements placeholder — just the UI for now)
-    - Step 4: Review Order (summary of all selections)
-  - Order summary sidebar (sticky on desktop)
-  - Progress indicator (steps 1-4)
-  - Form validation with React Hook Form + Zod
-  - Mobile: Steps as full-width sections (no sidebar)
+- [ ] **1.4** Port missing UI components
+  - shadcn-style in `src/components/ui/`: sheet, label, separator, tabs, skeleton, select, accordion
+  - Common in `src/components/common/`: ErrorBoundary, Rating, PriceDisplay, QuantityStepper, Breadcrumbs, PromoBar
 
-- [ ] **2.9** OrderConfirmationPage (`/order-confirmation/:orderNumber`)
-  - Success checkmark animation
-  - "Thank you for your order!"
-  - Order number
-  - Order summary
-  - "Continue Shopping" button
-  - "Track Order" link
+- [ ] **1.5** Install missing dependencies: `react-hook-form @hookform/resolvers zod axios`
 
-- [ ] **2.10** Account pages
-  - `/account` — Profile overview (name, email, phone, edit button)
-  - `/account/addresses` — Address list + add/edit/delete
-  - `/account/orders` — Order history list (order number, date, status, total)
-  - `/account/orders/:orderNumber` — Order detail (items, tracking, status timeline)
-  - Protected routes (redirect to login if not authenticated)
+- [ ] **1.6** Rebrand: "GaiDECOR" → "gAI DECOR" in Navbar.tsx, Footer.tsx
 
-- [ ] **2.11** WishlistPage (`/wishlist`)
-  - Product grid (same cards as collection page)
-  - "Add to Cart" button on each card
-  - "Remove" button on each card
-  - Empty state
+**Commit:** "Foundation: unified types, stores, UI components, rebrand"
 
-#### State Management
-- [ ] **2.12** Zustand stores
-  - `cartStore` — items, addItem, removeItem, updateQuantity, clearCart, coupon, totals
-  - `authStore` — user, isAuthenticated, login, logout, token
-  - `productStore` — currentProduct, relatedProducts
-  - `filterStore` — activeFilters, setFilter, clearFilters, sort, page
-  - `uiStore` — isMobileMenuOpen, isCartDrawerOpen, toasts, searchOpen
-  - `wishlistStore` — items, addItem, removeItem, isInWishlist
+#### Step 2: Console B — New Pages (PARALLEL with Step 3)
 
-#### Mock Data
-- [ ] **2.13** Create mock data files
-  - `src/mocks/products.ts` — 20 products matching seed data structure
-  - `src/mocks/categories.ts` — 6 categories with product types
-  - `src/mocks/cart.ts` — Sample cart with 2-3 items
-  - `src/mocks/orders.ts` — Sample order history
-  - `src/mocks/user.ts` — Sample user profile with addresses
+**Depends on Step 1 committed. Works ONLY in `src/pages/` (new files).**
 
-#### Responsive Design
-- [ ] **2.14** Mobile responsive for ALL pages
-  - Test at: 375px (iPhone), 768px (iPad), 1024px (laptop), 1440px (desktop)
-  - Mobile nav: Hamburger → slide-out sheet with categories
-  - Filter sidebar: Slide-out drawer on mobile
-  - Product grid: 2-col on mobile
-  - Cart: Stack columns vertically on mobile
+- [ ] **2.1** Checkout.tsx — 3-step flow (Shipping → Payment → Review)
+- [ ] **2.2** Wishlist.tsx
+- [ ] **2.3** Account pages — Account.tsx (layout), account/Profile.tsx, account/Addresses.tsx, account/Orders.tsx, account/OrderDetail.tsx
+- [ ] **2.4** Auth pages — Login.tsx, Register.tsx
+- [ ] **2.5** Other pages — OrderConfirmation.tsx, SearchResults.tsx, NotFound.tsx
+
+Port from old `frontend/src/pages/`, adapt to gai-ecom styling (emerald green, clean minimal).
+
+**Commit:** "Add checkout, wishlist, account, auth, search pages"
+
+#### Step 3: Console C — Mobile Responsiveness + UX (PARALLEL with Step 2)
+
+**Depends on Step 1 committed. Works in `src/components/` and existing page files.**
+
+- [ ] **3.1** Mobile navigation — Hamburger icon in Navbar (md:hidden), hide MegaMenu on mobile
+- [ ] **3.2** MobileMenu.tsx — Full-screen slide-in with accordion categories
+- [ ] **3.3** Navbar icons — Search, Heart (wishlist), User icons in right section
+- [ ] **3.4** ProductDetail responsive — `flex-col lg:flex-row`, `w-full lg:w-1/2`, responsive grids
+- [ ] **3.5** FilterSidebar mobile drawer — Render inside Sheet on mobile
+- [ ] **3.6** Category Hub pages responsive — All `*Hub.tsx` and `*Category.tsx` files
+- [ ] **3.7** Wishlist hearts on ProductCard — Heart icon overlay, toggle wishlistStore
+- [ ] **3.8** PromoBar + Layout — Add PromoBar above Navbar, ErrorBoundary in App.tsx
+- [ ] **3.9** Cart buttons — Wire CartDrawer + Cart checkout buttons to `/checkout`
+
+**Commit:** "Mobile responsive, UX polish, wishlist hearts, nav icons"
+
+#### Step 4: Coordinator — Routing & Integration
+
+**After Steps 2 and 3 committed.**
+
+- [ ] **4.1** Update App.tsx routing — Add all new routes:
+  `/checkout`, `/wishlist`, `/order-confirmation/:orderNumber`, `/search`,
+  `/login`, `/register`, `/account` (layout with nested routes), `/*` (404)
+
+- [ ] **4.2** Verification: `npm run build` + `npx tsc --noEmit` + visual test at 375px/768px/1280px
+
+- [ ] **4.3** Commit: "Wire up all routes, final integration"
+
+#### Step 5: Console A Returns — API Service Layer
+
+**After Step 4. Enables backend integration (WS-4).**
+
+- [ ] **5.1** API client — `src/services/api/client.ts` (axios, JWT interceptor, sessionId, 401 logout)
+- [ ] **5.2** API mappers — `src/services/api/mappers.ts` (snake_case → camelCase)
+- [ ] **5.3** Domain services — productApi, cartApi, authApi, orderApi, userApi, wishlistApi, reviewApi, searchApi, checkoutApi
+- [ ] **5.4** Data source facade — `src/services/dataSource.ts` (routes to local JSON or API based on `VITE_USE_API`)
+
+**Commit:** "API service layer with data source switching"
+
+#### Step 6: Coordinator — Swap & Cleanup
+
+- [ ] **6.1** Remove old `frontend/` directory
+- [ ] **6.2** Update project-level references
+- [ ] **6.3** Clean up old worktree branches from remote
+- [ ] **6.4** Merge `feature/frontend-upgrade` → `develop`
+- [ ] **6.5** Push to remote
 
 ---
 
@@ -580,8 +558,8 @@ Use **mock data** for all pages. Do NOT connect to the real API yet (that's WS-4
 
 **Branch:** `feature/admin-panel` (from `develop`)
 **Estimated:** 4-5 days
-**Dependencies:** WS-1 partially complete (needs API endpoints), WS-2 (shares UI components)
-**Console:** Console 1 or 2 (whoever finishes first picks this up)
+**Dependencies:** WS-1 complete, WS-2R Step 1+ (shares UI components from gai-ecom)
+**Console:** Any (after WS-2R Steps 1-4 complete)
 
 ### Tasks
 
@@ -658,27 +636,24 @@ Use **mock data** for all pages. Do NOT connect to the real API yet (that's WS-4
 
 **Branch:** `feature/integration` (from `develop`)
 **Estimated:** 3-4 days
-**Dependencies:** WS-1 + WS-2 substantially complete
+**Dependencies:** WS-1 (DONE) + WS-2R Step 5 (API service layer built)
 **Console:** Any
+**Note:** WS-2R Step 5 creates the API service layer with data source switching (`VITE_USE_API`). WS-4 flips the switch and wires everything to the real backend.
 
 ### Tasks
 
-- [ ] **4.1** API client setup
-  - `frontend/src/services/api.ts`:
-    - Axios instance with base URL from env
-    - Request interceptor: Attach Bearer token from authStore
-    - Response interceptor: Handle 401 (redirect to login), 403, 500
-    - Error formatting
-  - Create typed service functions for each API endpoint group
+- [ ] **4.1** Enable API mode
+  - Set `VITE_USE_API=true` in `.env`
+  - Verify API client connects to backend (`http://localhost:8000/api/v1`)
+  - Test JWT interceptor with auth store
 
 - [ ] **4.2** Connect product listing
-  - Replace mock data in CollectionPage with real `GET /api/v1/products`
+  - Switch dataSource to API for products
   - Wire filter sidebar to API query params
-  - Wire sort dropdown
-  - Wire pagination
+  - Wire sort dropdown + pagination
 
 - [ ] **4.3** Connect product detail
-  - Replace mock data in ProductDetailPage with real `GET /api/v1/products/{slug}`
+  - Switch to `GET /api/v1/products/{slug}` via dataSource
   - Load reviews from `GET /api/v1/products/{id}/reviews`
   - Load related products
 
@@ -1020,25 +995,24 @@ Use **mock data** for all pages. Do NOT connect to the real API yet (that's WS-4
 
 ## Verification Console Tasks
 
-The verification/QA console runs continuously and checks:
+The verification/QA console runs after each Step commit during WS-2R.
 
-### After Each Commit
-- [ ] TypeScript: `tsc --noEmit` passes (no type errors)
-- [ ] ESLint: No errors (warnings OK)
-- [ ] Backend lint: `ruff check` passes
-- [ ] Backend types: `mypy` passes (or acceptable errors)
-- [ ] All tests pass: `pytest` (backend), `vitest` (frontend if added)
-- [ ] Build succeeds: `vite build` (no build errors)
-
-### After Each Workstream
-- [ ] API contracts match: Frontend service calls match backend endpoint signatures
+### After Each Step Commit (WS-2R)
+- [ ] TypeScript: `cd gai-ecom && npx tsc --noEmit` passes (no type errors)
+- [ ] Build succeeds: `npm run build` (no build errors)
+- [ ] No console.log left in production code
+- [ ] All pages render without errors at 375px, 768px, 1280px
 - [ ] No hardcoded secrets or credentials in code
-- [ ] No console.log left in production code (except intentional debug mode)
-- [ ] All pages render without errors
-- [ ] Mobile responsive check at 375px width
-- [ ] Accessibility: No missing alt text, aria labels on buttons
 
-### Integration Checks
+### After WS-2R Complete
+- [ ] Flow: Browse → Product → Cart → Checkout → Confirmation
+- [ ] Flow: Login → Wishlist → Account
+- [ ] Mobile: Hamburger → Navigate → Product → Cart drawer → Checkout
+- [ ] All category Hub pages render correctly
+- [ ] Cart operations work (add, remove, update quantity, coupon)
+
+### After WS-4 (Backend Integration)
+- [ ] API contracts match: Frontend service calls match backend endpoint signatures
 - [ ] Docker Compose starts cleanly (postgres + redis + backend + frontend)
 - [ ] Database migrations run without errors
 - [ ] Seed data loads correctly
@@ -1048,14 +1022,22 @@ The verification/QA console runs continuously and checks:
 
 ## Status Tracking
 
-| Workstream | Status | Branch | Assigned To | Started | Completed |
-|-----------|--------|--------|-------------|---------|-----------|
-| WS-0: Setup | Not Started | main/develop | — | — | — |
-| WS-1: Backend | Not Started | feature/backend-api | Console 1 | — | — |
-| WS-2: Frontend | Not Started | feature/frontend-core | Console 2 | — | — |
-| WS-3: Admin | Not Started | feature/admin-panel | — | — | — |
-| WS-4: Integration | Not Started | feature/integration | — | — | — |
-| WS-5: Auth | Not Started | feature/auth-integration | — | — | — |
-| WS-6: Payments | Not Started | feature/payments-stripe | — | — | — |
-| WS-7: Voice | Not Started | feature/voice-pipeline | — | — | — |
-| WS-8: Polish | Not Started | feature/realtime-polish | — | — | — |
+| Workstream | Status | Branch | Assigned To | Notes |
+|-----------|--------|--------|-------------|-------|
+| WS-0: Setup | DONE | main/develop | — | Monorepo, Docker, CI setup |
+| WS-1: Backend | DONE | feature/backend-api (merged) | Console 1 | 42 endpoints, 28 tests, 10 modules |
+| WS-2: Frontend (old) | REPLACED | feature/frontend-core (to delete) | — | Superseded by WS-2R |
+| **WS-2R: Frontend Upgrade** | **IN PROGRESS** | **feature/frontend-upgrade** | **Consoles A/B/C** | Using gai-ecom as base |
+| ↳ Step 0: Setup | Not Started | — | Coordinator | Branch + baseline |
+| ↳ Step 1: Types+Stores | Not Started | — | Console A | BLOCKING |
+| ↳ Step 2: Pages | Not Started | — | Console B | After Step 1 |
+| ↳ Step 3: Mobile+UX | Not Started | — | Console C | After Step 1, parallel with 2 |
+| ↳ Step 4: Routing | Not Started | — | Coordinator | After Steps 2+3 |
+| ↳ Step 5: API Layer | Not Started | — | Console A | After Step 4 |
+| ↳ Step 6: Swap+Cleanup | Not Started | — | Coordinator | After Step 5 |
+| WS-3: Admin | Not Started | feature/admin-panel | — | After WS-2R Steps 1-4 |
+| WS-4: Integration | Not Started | feature/integration | — | After WS-2R Step 5 |
+| WS-5: Auth | Not Started | feature/auth-integration | — | After WS-4 |
+| WS-6: Payments | Not Started | feature/payments-stripe | — | After WS-4 |
+| WS-7: Voice | Not Started | feature/voice-pipeline | — | After WS-4 |
+| WS-8: Polish | Not Started | feature/realtime-polish | — | After WS-5/6/7 |

@@ -186,12 +186,14 @@ module/
 
 | Layer | Component | Technology | Version |
 |-------|-----------|-----------|---------|
-| **Frontend** | Framework | React 18 + TypeScript | 18.x |
-| **Frontend** | Build Tool | Vite | 5.x |
-| **Frontend** | State Management | Zustand | 4.x |
-| **Frontend** | Routing | React Router v6 | 6.x |
+| **Frontend** | Framework | React 19 + TypeScript | 19.x |
+| **Frontend** | Build Tool | Vite | 7.x |
+| **Frontend** | State Management | Zustand | 5.x |
+| **Frontend** | Routing | React Router v7 (v6-compatible API) | 7.x |
 | **Frontend** | UI Components | shadcn/ui + Radix UI | latest |
-| **Frontend** | Styling | Tailwind CSS | 3.x |
+| **Frontend** | Styling | Tailwind CSS 3 + Custom SX Design System | 3.4.x |
+| **Frontend** | Design System | SX Primitives (Box, Flex, Text, Grid, Stack) | custom |
+| **Frontend** | Animations | Framer Motion | latest |
 | **Frontend** | HTTP Client | Axios | 1.x |
 | **Frontend** | Forms | React Hook Form + Zod | latest |
 | **Frontend** | Voice (STT) | Web Speech API (MVP) → Azure Speech SDK | - |
@@ -641,39 +643,37 @@ Each filter type renders differently:
 
 ### Design System Tokens
 
-Based on Jonathan Y analysis:
+**Brand**: gAI DECOR (emerald/green palette — home decor focused)
 
 ```
 Colors:
-  --primary:        #1B1B3A    (Navy/dark blue - buttons, header accents)
-  --primary-hover:  #2D2D5E
-  --background:     #FFFFFF
-  --surface:        #F9F9F9    (Card backgrounds, section separators)
-  --text-primary:   #1A1A1A
-  --text-secondary: #666666
-  --text-muted:     #999999
-  --border:         #E5E5E5
-  --accent:         #C9A96E    (Gold/warm - sale badges, highlights)
-  --success:        #22C55E
-  --error:          #EF4444
-  --rating:         #1A1A1A    (Filled stars - dark, like Jonathan Y)
+  --primary-dark:       #072D1F    (Dark green - headers, footer, primary backgrounds)
+  --primary-emerald:    #29B770    (Emerald - buttons, accents, CTAs)
+  --primary-black:      #111111    (Near-black - text, product UI)
+  --secondary-mint-light: #E0E9CC  (Mint light - subtle backgrounds)
+  --secondary-mint:     #98C7AC    (Mint - secondary accents)
+  --secondary-gray:     #F4F4F4    (Light gray - surfaces, cards)
+  --background:         #FFFFFF
+  --text-primary:       #111827
+  --text-secondary:     #6B7280
+  --text-muted:         #9CA3AF
+  --border:             #E5E7EB
+  --destructive:        #EF4444
+  --success:            #22C55E
 
 Typography:
-  --font-display:   'Playfair Display', serif  (Logo, headings)
-  --font-body:      'Inter', sans-serif        (Body, nav, UI)
+  System font stack (no custom fonts — fast load)
+  Tailwind default: ui-sans-serif, system-ui, sans-serif
 
-  H1: 36px / 700
-  H2: 28px / 600
-  H3: 20px / 600
-  Body: 14px / 400
-  Small: 12px / 400
-  Nav: 13px / 500 / uppercase / letter-spacing: 1px
+  Headings: font-light, uppercase, tracking-wider (consistent across all pages)
+  Body: 14-16px, text-gray-700
+  Nav: 13-14px, uppercase, tracking-wider
 
 Spacing:
-  Page max-width: 1440px
-  Content padding: 24px (mobile) / 48px (desktop)
-  Section gap: 64px
-  Card gap: 16px
+  Page max-width: screen-2xl (1536px)
+  Content padding: 16px (mobile) / 24px (desktop)
+  Section gap: 48-80px
+  Card gap: 16-24px
 
 Shadows:
   --shadow-sm: 0 1px 2px rgba(0,0,0,0.05)
@@ -684,8 +684,24 @@ Breakpoints:
   md: 768px
   lg: 1024px
   xl: 1280px
-  2xl: 1440px
+  2xl: 1536px
 ```
+
+### Styling Architecture
+
+The frontend uses a **dual styling approach**:
+
+1. **SX Design System** (existing components) — A custom object-to-Tailwind-class compiler
+   - Primitives: `Box`, `Flex`, `Text`, `Grid`, `Stack` in `src/design-system/`
+   - `parseSxToClasses()` converts `{ display: 'flex', gap: 4, bg: 'bg-white' }` → `"flex gap-4 bg-white"`
+   - Supports responsive values: `{ p: { base: 2, lg: 6 } }` → `"p-2 lg:p-6"`
+   - **Output is standard Tailwind classes** — no runtime CSS engine
+
+2. **Direct Tailwind + shadcn/ui** (new components) — Standard className approach
+   - Used for all new pages (Checkout, Account, Auth, etc.)
+   - shadcn/ui components in `src/components/ui/`
+
+Both approaches generate identical Tailwind output and coexist without conflict.
 
 ---
 
@@ -956,51 +972,55 @@ Each feature branch merges into `develop` via PR. `develop` merges to `main` for
 
 ## 12. Implementation Workstreams
 
-### Dependency Graph
+### Current Status (as of March 2026)
+
+- **WS-0**: DONE — Project setup complete
+- **WS-1**: DONE — Backend API (42 routes, 28 tests, 10 modules) merged to `develop`
+- **WS-2**: REPLACED — Original WS-2 frontend replaced by **gai-ecom upgrade** (see WS-2R below)
+- **WS-2R**: IN PROGRESS — Upgrading gai-ecom to production frontend on `feature/frontend-upgrade`
+
+### Dependency Graph (Updated)
 
 ```
-                    ┌─────────────────┐
-                    │ WS-0: Project   │
-                    │ Setup & Infra   │
-                    │ (Sequential -   │
-                    │  must be first) │
-                    └────────┬────────┘
-                             │
-              ┌──────────────┼──────────────┐
-              │              │              │
-              ▼              ▼              ▼
-    ┌─────────────┐ ┌──────────────┐ ┌──────────────┐
-    │ WS-1:       │ │ WS-2:        │ │ WS-3:        │
-    │ Backend API │ │ Frontend     │ │ Admin Panel  │
-    │ (Core)      │ │ (UI Shell +  │ │ (depends on  │
-    │             │ │  Components) │ │  WS-1 + WS-2)│
-    └──────┬──────┘ └──────┬───────┘ └──────────────┘
-           │               │
-           ▼               ▼
-    ┌──────────────────────────────┐
-    │ WS-4: Frontend-Backend       │
-    │ Integration (connects WS-1   │
-    │ and WS-2)                    │
-    └──────────────┬───────────────┘
+    WS-0 (DONE) → WS-1 (DONE) ──────────────────────────────────────┐
+                                                                      │
+    WS-2R: Frontend Upgrade (IN PROGRESS)                             │
+    ┌─────────────────────────────────────────┐                      │
+    │ Step 0: Setup branch + baseline         │                      │
+    │    ↓                                     │                      │
+    │ Step 1: Console A (Types + Stores)       │                      │
+    │    ↓                                     │                      │
+    │ Step 2: Console B (Pages) ─── PARALLEL   │                      │
+    │ Step 3: Console C (Mobile+UX)── PARALLEL │                      │
+    │    ↓                                     │                      │
+    │ Step 4: Coordinator (Routing + Verify)   │                      │
+    │    ↓                                     │                      │
+    │ Step 5: Console A (API Service Layer) ───┼──── connects to WS-1 │
+    │    ↓                                     │                      │
+    │ Step 6: Swap + Cleanup + Merge           │                      │
+    └─────────────────────────────────────────┘                      │
+                   │                                                  │
+                   ▼                                                  │
+         WS-3 (Admin Panel) ─────────────────────────────────────────┘
                    │
          ┌─────────┼─────────┐
-         │         │         │
          ▼         ▼         ▼
-   ┌──────────┐ ┌────────┐ ┌──────────┐
-   │ WS-5:    │ │ WS-6:  │ │ WS-7:    │
-   │ Auth     │ │ Stripe │ │ Voice    │
-   │ (Azure   │ │Payment │ │ Pipeline │
-   │  AD B2C) │ │        │ │          │
-   └──────────┘ └────────┘ └──────────┘
+      WS-5      WS-6      WS-7       (Auth, Payments, Voice — parallel)
+      (Auth)    (Stripe)   (Voice)
                    │
                    ▼
-            ┌──────────────┐
-            │ WS-8:        │
-            │ Real-Time +  │
-            │ Polish +     │
-            │ Testing      │
-            └──────────────┘
+               WS-8 (Polish + Testing)
 ```
+
+### Frontend Upgrade Strategy (WS-2R)
+
+**Why**: The original WS-2 frontend had mock data and placeholder images. The gai-ecom site has 158 real products, 181 product images, rich landing pages with animations, per-category Hub pages, and a mature design system. Adopting gai-ecom as the frontend baseline saves significant work.
+
+**How**: Additive upgrade — keep everything in gai-ecom that works, port missing features (checkout, auth, wishlist, account pages) from WS-2, build API service layer for backend integration.
+
+**Branch**: `feature/frontend-upgrade` (single branch, no worktrees needed)
+
+**Parallel Consoles**: 3 consoles work on different file sets simultaneously — see docs/AGENT_PROMPTS.md for console prompts.
 
 ### Workstream Details
 
@@ -1239,45 +1259,67 @@ When the chatbot is ready:
 
 ## 14. Design System & UI Specification
 
-### Reference: Jonathan Y (jonathany.com)
+### Brand: gAI DECOR
+
+### Design Reference: Jonathan Y (jonathany.com) + gai-ecom existing implementation
 
 ### Design Principles
 1. **Clean & minimal** — Lots of whitespace, content-focused
-2. **Navy + white + warm neutrals** — Premium but not cold
-3. **Serif for brand, sans-serif for UI** — Editorial feel
-4. **Large product images** — Products sell themselves
-5. **Consistent card design** — Image → Name → Price → Rating
+2. **Emerald green + white + warm neutrals** — Natural, premium feel for home decor
+3. **System fonts for speed** — No custom font loading
+4. **Large product images** — Products sell themselves (181 real product photos)
+5. **Consistent card design** — Image → Name → Price → Color swatches
 6. **Collapsible filters** — Don't overwhelm, let user expand
-7. **Full-width lifestyle imagery** — Hero sections, category banners
-8. **Sticky header** — Always accessible navigation
-9. **Floating voice widget** — Non-intrusive, bottom-right
-10. **Mobile-first** — Responsive at every breakpoint
+7. **Full-width lifestyle imagery** — Hero carousel, video hero, category banners
+8. **Sticky header** — Transparent on home (over hero), white on scroll/other pages
+9. **MegaMenu navigation** — Desktop hover-triggered, mobile hamburger drawer
+10. **SX Design System** — Object syntax for styling, outputs Tailwind classes
+11. **Floating voice widget** — Non-intrusive, bottom-right (WS-7)
+12. **Mobile-first** — Responsive at every breakpoint
 
-### Component Inventory
+### Component Inventory (gai-ecom baseline)
 
-| Component | Priority | Notes |
-|-----------|----------|-------|
-| Header (nav + search + cart badge) | P0 | Dynamic categories from API |
-| Footer (newsletter + links) | P0 | |
-| Hero Carousel | P0 | Full-width, auto-rotate |
-| Category Grid (3-col lifestyle images) | P0 | |
-| Product Card | P0 | Image, name, price, rating |
-| Product Grid (4-col) | P0 | |
-| Filter Sidebar (auto-generated) | P0 | From attribute_templates |
-| Product Detail (gallery + info) | P0 | |
-| Cart Drawer / Cart Page | P0 | |
-| Checkout Multi-Step | P0 | |
-| Voice Widget (mic + transcript) | P1 | Floating bottom-right |
-| Search Modal (full-screen overlay) | P1 | |
-| Breadcrumbs | P1 | |
-| Rating Stars | P0 | |
-| Promo Bar (top) | P2 | |
-| "You May Also Need" cross-sell | P2 | |
-| Size/variant selector buttons | P0 | |
-| Quantity stepper | P0 | |
-| Toast notifications | P0 | |
-| Loading skeletons | P1 | |
-| Empty states | P1 | |
+| Component | Status | Location | Notes |
+|-----------|--------|----------|-------|
+| Header/Navbar (transparent→white, mega menu, cart) | DONE | `components/layout/Navbar.tsx` | Needs mobile hamburger |
+| MegaMenu (hover-triggered category nav) | DONE | `components/layout/MegaMenu.tsx` | Desktop only |
+| Footer | DONE | `components/layout/Footer.tsx` | |
+| Hero Carousel (full-width, auto-rotate) | DONE | `components/landing/HeroCarousel.tsx` | |
+| Video Hero | DONE | `design-system/components/VideoHero.tsx` | |
+| Flash Sale Timer | DONE | `components/landing/FlashSaleSection.tsx` | |
+| Trending Section (horizontal scroll) | DONE | `components/landing/TrendingSection.tsx` | |
+| Interior Styles Section | DONE | `components/landing/InteriorStylesSection.tsx` | |
+| Lighting Showcase | DONE | `components/landing/LightingShowcase.tsx` | |
+| Values Section | DONE | `components/landing/ValuesSection.tsx` | |
+| Instagram Promo | DONE | `design-system/components/InstagramPromo.tsx` | |
+| Image Grid | DONE | `design-system/components/ImageGrid.tsx` | |
+| Category Hub Pages (per-category landing) | DONE | `pages/category/*/Hub.tsx` | 6 categories |
+| Category Listing + Filters | DONE | `pages/category/*/Category.tsx` | |
+| Product Card (image, name, price) | DONE | `components/product/ProductCard.tsx` | Needs wishlist heart |
+| Product Grid | DONE | `components/product/ProductGrid.tsx` | |
+| Filter Sidebar (accordion, multi-filter) | DONE | `components/product/FilterSidebar.tsx` | Needs mobile drawer |
+| Product Detail (split-view, gallery, accordions) | DONE | `pages/ProductDetail.tsx` | Needs mobile responsive |
+| Cart Page (split layout, order summary) | DONE | `pages/Cart.tsx` | |
+| Cart Drawer (slide-in, framer-motion) | DONE | `components/cart/CartDrawer.tsx` | |
+| Product Image (lazy load wrapper) | DONE | `components/common/ProductImage.tsx` | |
+| Toast Notifications | DONE | `components/common/Toast.tsx` | |
+| SX Primitives (Box, Flex, Text, Grid, Stack) | DONE | `design-system/primitives/` | |
+| Checkout Multi-Step | TODO | `pages/Checkout.tsx` | Port from WS-2 |
+| Wishlist Page | TODO | `pages/Wishlist.tsx` | Port from WS-2 |
+| Account Pages (profile, orders, addresses) | TODO | `pages/account/` | Port from WS-2 |
+| Auth Pages (login, register) | TODO | `pages/Login.tsx` | New |
+| Search Results Page | TODO | `pages/SearchResults.tsx` | New |
+| Order Confirmation | TODO | `pages/OrderConfirmation.tsx` | Port from WS-2 |
+| Mobile Menu (hamburger drawer) | TODO | `components/layout/MobileMenu.tsx` | New |
+| Voice Widget (mic + transcript) | TODO (WS-7) | `components/common/VoiceButton.tsx` | |
+| ErrorBoundary | TODO | `components/common/ErrorBoundary.tsx` | Port from WS-2 |
+| Rating Stars | TODO | `components/common/Rating.tsx` | Port from WS-2 |
+| Price Display | TODO | `components/common/PriceDisplay.tsx` | Port from WS-2 |
+| Quantity Stepper | TODO | `components/common/QuantityStepper.tsx` | Port from WS-2 |
+| Breadcrumbs | TODO | `components/common/Breadcrumbs.tsx` | Port from WS-2 |
+| Promo Bar | TODO | `components/common/PromoBar.tsx` | Port from WS-2 |
+| Loading Skeletons | TODO | `components/ui/skeleton.tsx` | Port from WS-2 |
+| 404 Page | TODO | `pages/NotFound.tsx` | New |
 
 ---
 
